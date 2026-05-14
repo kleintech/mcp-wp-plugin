@@ -30,3 +30,12 @@ Exposed keys:
 
 1. Create `includes/modules/class-{name}.php` implementing `McpWpHelper\Module`.
 2. `require_once` it from `mcp-wp-helper.php` and call its `register()` in the `plugins_loaded` callback.
+
+## Tests
+
+```bash
+composer install
+composer test
+```
+
+Unit tests stub the WP functions the modules touch, so the suite runs without a WordPress test install or database.

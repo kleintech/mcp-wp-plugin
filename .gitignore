@@ -8,3 +8,9 @@
 .claude-flow/
 .mcp.json
 CLAUDE.md
+
+# Composer / PHPUnit
+/vendor/
+composer.lock
+.phpunit.result.cache
+.phpunit.cache/
