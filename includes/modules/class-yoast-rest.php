@@ -1,0 +1,81 @@
+<?php
+/**
+ * Expose Yoast SEO post meta to the REST API.
+ *
+ * Yoast stores SEO data in post meta (e.g. _yoast_wpseo_title) but does not
+ * set show_in_rest, so the mcp-wp connector cannot read or update it via
+ * the standard /wp/v2/posts endpoints. This module registers those keys
+ * with per-post capability checks and per-key sanitizers.
+ *
+ * @package McpWpHelper
+ */
+
+namespace McpWpHelper\Modules;
+
+use McpWpHelper\Module;
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+final class Yoast_Rest implements Module {
+
+	/**
+	 * Map of Yoast meta key => sanitize callback. Callbacks are either a
+	 * string (built-in WP sanitizer) or a [class, method] pair.
+	 */
+	private const META_KEYS = [
+		'_yoast_wpseo_title'                => 'sanitize_text_field',
+		'_yoast_wpseo_metadesc'             => 'sanitize_textarea_field',
+		'_yoast_wpseo_focuskw'              => 'sanitize_text_field',
+		'_yoast_wpseo_canonical'            => 'esc_url_raw',
+		'_yoast_wpseo_meta-robots-noindex'  => [ self::class, 'sanitize_robots' ],
+		'_yoast_wpseo_meta-robots-nofollow' => [ self::class, 'sanitize_robots' ],
+		'_yoast_wpseo_opengraph-title'      => 'sanitize_text_field',
+		'_yoast_wpseo_opengraph-description' => 'sanitize_textarea_field',
+		'_yoast_wpseo_opengraph-image'      => 'esc_url_raw',
+		'_yoast_wpseo_twitter-title'        => 'sanitize_text_field',
+		'_yoast_wpseo_twitter-description'  => 'sanitize_textarea_field',
+		'_yoast_wpseo_twitter-image'        => 'esc_url_raw',
+	];
+
+	public static function register(): void {
+		add_action( 'init', [ self::class, 'register_meta' ], 20 );
+	}
+
+	public static function register_meta(): void {
+		$post_types = array_diff(
+			get_post_types( [ 'public' => true ], 'names' ),
+			[ 'attachment' ]
+		);
+
+		foreach ( $post_types as $post_type ) {
+			foreach ( self::META_KEYS as $key => $sanitizer ) {
+				register_post_meta( $post_type, $key, [
+					'type'              => 'string',
+					'single'            => true,
+					'show_in_rest'      => true,
+					'sanitize_callback' => $sanitizer,
+					'auth_callback'     => [ self::class, 'can_edit_post_meta' ],
+				] );
+			}
+		}
+	}
+
+	/**
+	 * Yoast's robots flags are documented as '0' | '1' | '2'. Anything else
+	 * gets coerced to '0' (Yoast default).
+	 */
+	public static function sanitize_robots( $value ): string {
+		return in_array( (string) $value, [ '0', '1', '2' ], true ) ? (string) $value : '0';
+	}
+
+	/**
+	 * Per-post capability check. register_post_meta passes
+	 * ( $allowed, $meta_key, $post_id, $user_id, $cap, $caps ) — gate on the
+	 * specific post so contributors can't edit SEO for posts they don't own.
+	 */
+	public static function can_edit_post_meta( bool $allowed, string $meta_key, int $post_id ): bool {
+		return current_user_can( 'edit_post', $post_id );
+	}
+}

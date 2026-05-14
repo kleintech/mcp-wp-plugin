@@ -1,0 +1,10 @@
+# Editor / OS
+.DS_Store
+*.swp
+*~
+
+# RuFlo / Claude Code workspace artifacts (per-developer, not shipped with plugin)
+.claude/
+.claude-flow/
+.mcp.json
+CLAUDE.md
