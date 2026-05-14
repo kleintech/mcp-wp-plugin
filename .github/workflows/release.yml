@@ -1,0 +1,71 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, xml
+          coverage: none
+          tools: composer:v2
+
+      - run: composer install --no-interaction --no-progress --prefer-dist
+      - run: composer test
+
+      - name: Resolve version
+        id: version
+        run: |
+          ref="${GITHUB_REF_NAME}"
+          version="${ref#v}"
+          echo "tag=${ref}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Sync version into plugin header
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          sed -i -E "s/^( \* Version:[[:space:]]+).*/\1${version}/" mcp-wp-helper.php
+          sed -i -E "s/(define\( 'MCP_WP_HELPER_VERSION', ')[^']+(' \);)/\1${version}\2/" mcp-wp-helper.php
+          grep -E "Version:|MCP_WP_HELPER_VERSION" mcp-wp-helper.php
+
+      - name: Build plugin zip
+        run: |
+          slug=mcp-wp-helper
+          staging="${RUNNER_TEMP}/${slug}"
+          mkdir -p "${staging}"
+          rsync -a --delete \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.gitignore' \
+            --exclude='.claude*' \
+            --exclude='.mcp.json' \
+            --exclude='CLAUDE.md' \
+            --exclude='tests' \
+            --exclude='vendor' \
+            --exclude='composer.json' \
+            --exclude='composer.lock' \
+            --exclude='phpunit.xml.dist' \
+            --exclude='.phpunit.result.cache' \
+            --exclude='.phpunit.cache' \
+            ./ "${staging}/"
+          (cd "${RUNNER_TEMP}" && zip -r "${GITHUB_WORKSPACE}/${slug}-${{ steps.version.outputs.version }}.zip" "${slug}")
+          unzip -l "${slug}-${{ steps.version.outputs.version }}.zip"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          generate_release_notes: true
+          files: mcp-wp-helper-${{ steps.version.outputs.version }}.zip
