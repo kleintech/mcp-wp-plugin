@@ -146,17 +146,55 @@ final class YoastRestTest extends TestCase {
 	}
 
 	public function test_can_edit_post_meta_delegates_to_edit_post_capability(): void {
-		WpStubs::$caps['edit_post:42'] = true;
-		WpStubs::$caps['edit_post:43'] = false;
+		WpStubs::$user_caps['7:edit_post:42'] = true;
+		WpStubs::$user_caps['7:edit_post:43'] = false;
 
-		$this->assertTrue( Yoast_Rest::can_edit_post_meta( true, '_yoast_wpseo_title', 42 ) );
-		$this->assertFalse( Yoast_Rest::can_edit_post_meta( true, '_yoast_wpseo_title', 43 ) );
+		$this->assertTrue( Yoast_Rest::can_edit_post_meta( true, '_yoast_wpseo_title', 42, 7 ) );
+		$this->assertFalse( Yoast_Rest::can_edit_post_meta( true, '_yoast_wpseo_title', 43, 7 ) );
 	}
 
 	public function test_can_edit_post_meta_ignores_the_allowed_flag(): void {
-		// Even if WP defaults $allowed to true, we must still enforce the per-post check.
-		WpStubs::$caps['edit_post:99'] = false;
-		$this->assertFalse( Yoast_Rest::can_edit_post_meta( true, '_yoast_wpseo_title', 99 ) );
+		// Even if WP hands us $allowed = true, we must still enforce the per-post check.
+		WpStubs::$user_caps['7:edit_post:99'] = false;
+		$this->assertFalse( Yoast_Rest::can_edit_post_meta( true, '_yoast_wpseo_title', 99, 7 ) );
+	}
+
+	/**
+	 * The bug this catches: `return $allowed && user_can( ... )`, which reads
+	 * like a conservative "honour what core already decided" edit and would in
+	 * fact deny every write. Core computes $allowed as
+	 * ! is_protected_meta( $meta_key ) (capabilities.php:475), and every key
+	 * either module registers is protected — Yoast's by its leading underscore,
+	 * Rank Math's by its own is_protected_meta filter — so on a real site
+	 * $allowed arrives FALSE for all of them. Deny-everything is the realistic
+	 * regression here; the allowed=true case above cannot catch it.
+	 */
+	public function test_can_edit_post_meta_grants_access_despite_allowed_being_false(): void {
+		WpStubs::$user_caps['7:edit_post:99'] = true;
+		$this->assertTrue( Yoast_Rest::can_edit_post_meta( false, '_yoast_wpseo_title', 99, 7 ) );
+	}
+
+	/**
+	 * The bug this catches: answering with current_user_can() instead of
+	 * user_can( $user_id, ... ). Core fires this same filter from
+	 * user_can()/author_can(), where it is asking about somebody other than the
+	 * logged-in user — so an admin browsing the screen would grant edit rights
+	 * on behalf of a contributor who has none.
+	 */
+	public function test_can_edit_post_meta_answers_about_the_user_core_asked_about(): void {
+		WpStubs::$current_user_id             = 1;   // an admin, viewing.
+		WpStubs::$user_caps['1:edit_post:42'] = true;
+		WpStubs::$user_caps['5:edit_post:42'] = false; // the contributor being asked about.
+
+		$this->assertFalse( Yoast_Rest::can_edit_post_meta( true, '_yoast_wpseo_title', 42, 5 ) );
+
+		// ...and the converse, so this cannot pass merely by returning false:
+		// current user denied, the user core asked about allowed.
+		WpStubs::$current_user_id             = 5;
+		WpStubs::$user_caps['5:edit_post:77'] = false;
+		WpStubs::$user_caps['7:edit_post:77'] = true;
+
+		$this->assertTrue( Yoast_Rest::can_edit_post_meta( true, '_yoast_wpseo_title', 77, 7 ) );
 	}
 
 	/**

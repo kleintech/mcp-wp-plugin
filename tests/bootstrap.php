@@ -23,5 +23,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/Support/WpStubs.php';
 McpWpHelper\Tests\Support\WpStubs::install();
 
-require_once dirname( __DIR__ ) . '/includes/class-module.php';
-require_once dirname( __DIR__ ) . '/includes/modules/class-yoast-rest.php';
+// Load the real plugin entry point rather than re-listing its requires here:
+// a module wired into one file but not the other would otherwise go unnoticed.
+require_once dirname( __DIR__ ) . '/mcp-wp-helper.php';
+
+McpWpHelper\Tests\Support\WpStubs::$boot_actions = McpWpHelper\Tests\Support\WpStubs::$actions;
