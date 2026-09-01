@@ -24,6 +24,15 @@ final class WpStubs {
 	/** @var array<int, string> Post types returned by get_post_types stub */
 	public static array $post_types = [ 'post', 'page', 'attachment' ];
 
+	/**
+	 * Snapshot of the hooks the real plugin file registered at load time.
+	 * Taken once by the bootstrap and deliberately NOT cleared by reset(),
+	 * so tests can assert on the plugin's own wiring.
+	 *
+	 * @var array<int, array{hook: string, callback: mixed, priority: int, accepted_args: int}>
+	 */
+	public static array $boot_actions = [];
+
 	public static function install(): void {
 		if ( function_exists( 'add_action' ) ) {
 			return;
