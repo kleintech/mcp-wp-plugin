@@ -201,12 +201,30 @@ final class Rank_Math_Rest implements Module {
 
 	/**
 	 * Rank Math's tri-state checkbox storage: 'on', 'off', or no row at all.
-	 * Options::normalize_data() only recognises those two literals, so anything
-	 * else is coerced to '' — which deletes the distinction and falls back to
-	 * the key's own default, the same as an untouched post.
+	 *
+	 * Two different Rank Math readers disagree on the accepted spelling, so
+	 * this canonicalises rather than whitelisting one of them:
+	 *   - Options::normalize_data() (class-options.php:53-58) honours
+	 *     'on'/'true' => on, 'off'/'false' => off, and '0'/'1' via intval.
+	 *   - The editor (class-screen.php:312) treats ONLY the exact string 'off'
+	 *     as off, and everything else — including 'false' — as on.
+	 * A stored 'false' therefore renders as off but displays as on. Mapping the
+	 * synonyms onto 'on'/'off' preserves the author's intent while keeping the
+	 * stored value in the set both readers agree about.
+	 *
+	 * Anything genuinely unrecognised becomes '' — no row, which falls back to
+	 * the key's own default (ON), the same as an untouched post.
 	 */
 	public static function sanitize_on_off( $value ): string {
-		return in_array( $value, [ 'on', 'off' ], true ) ? $value : '';
+		if ( in_array( $value, [ 'on', 'true', '1' ], true ) ) {
+			return 'on';
+		}
+
+		if ( in_array( $value, [ 'off', 'false', '0' ], true ) ) {
+			return 'off';
+		}
+
+		return '';
 	}
 
 	/**
@@ -243,7 +261,7 @@ final class Rank_Math_Rest implements Module {
 	 * current_user_can() there returns the logged-in admin's answer to a
 	 * question about a contributor.
 	 */
-	public static function can_edit_post_meta( bool $allowed, string $meta_key, int $post_id, int $user_id ): bool {
+	public static function can_edit_post_meta( bool $allowed, string $meta_key, int $post_id, int $user_id = 0 ): bool {
 		return user_can( $user_id, 'edit_post', $post_id );
 	}
 }

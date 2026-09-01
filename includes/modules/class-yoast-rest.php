@@ -80,7 +80,7 @@ final class Yoast_Rest implements Module {
 	 * current_user_can() there returns the logged-in admin's answer to a
 	 * question about a contributor.
 	 */
-	public static function can_edit_post_meta( bool $allowed, string $meta_key, int $post_id, int $user_id ): bool {
+	public static function can_edit_post_meta( bool $allowed, string $meta_key, int $post_id, int $user_id = 0 ): bool {
 		return user_can( $user_id, 'edit_post', $post_id );
 	}
 }

@@ -236,7 +236,7 @@ final class RankMathRestTest extends TestCase {
 	 *
 	 * @dataProvider on_off_values
 	 */
-	public function test_sanitize_on_off_keeps_both_literals( $input, string $expected ): void {
+	public function test_sanitize_on_off_canonicalises_to_the_stored_literals( $input, string $expected ): void {
 		$this->assertSame( $expected, Rank_Math_Rest::sanitize_on_off( $input ) );
 	}
 
@@ -245,18 +245,25 @@ final class RankMathRestTest extends TestCase {
 	 */
 	public static function on_off_values(): array {
 		return [
-			'on stays on'              => [ 'on', 'on' ],
-			'off stays off'            => [ 'off', 'off' ],
-			'empty means unset'        => [ '', '' ],
-			// Options::normalize_data() recognises only the two literals, so
-			// anything else must become '' rather than a value that looks set.
-			'uppercase OFF is not off' => [ 'OFF', '' ],
-			'string 1'                 => [ '1', '' ],
-			'string 0'                 => [ '0', '' ],
-			'bool true'                => [ true, '' ],
-			'bool false'               => [ false, '' ],
-			'null'                     => [ null, '' ],
-			'array'                    => [ [ 'off' ], '' ],
+			'on stays on'       => [ 'on', 'on' ],
+			'off stays off'     => [ 'off', 'off' ],
+			'empty means unset' => [ '', '' ],
+
+			// Options::normalize_data() honours these spellings too, so they
+			// carry real intent. The bug this catches: dropping 'false' to ''
+			// turns a deliberate OFF into the default, which is ON — the exact
+			// inversion this key exists to prevent.
+			'true canonicalises to on'  => [ 'true', 'on' ],
+			'false canonicalises to off' => [ 'false', 'off' ],
+			'string 1 is on'    => [ '1', 'on' ],
+			'string 0 is off'   => [ '0', 'off' ],
+
+			// Genuinely unrecognised input must not look like a decision.
+			'uppercase OFF'     => [ 'OFF', '' ],
+			'bool true'         => [ true, '' ],
+			'bool false'        => [ false, '' ],
+			'null'              => [ null, '' ],
+			'array'             => [ [ 'off' ], '' ],
 		];
 	}
 
@@ -405,9 +412,24 @@ final class RankMathRestTest extends TestCase {
 	}
 
 	public function test_can_edit_post_meta_ignores_the_allowed_flag(): void {
-		// Even if WP defaults $allowed to true, we must still enforce the per-post check.
+		// Even if WP hands us $allowed = true, we must still enforce the per-post check.
 		WpStubs::$user_caps['7:edit_post:99'] = false;
 		$this->assertFalse( Rank_Math_Rest::can_edit_post_meta( true, 'rank_math_title', 99, 7 ) );
+	}
+
+	/**
+	 * The bug this catches: `return $allowed && user_can( ... )`, which reads
+	 * like a conservative "honour what core already decided" edit and would in
+	 * fact deny every write. Core computes $allowed as
+	 * ! is_protected_meta( $meta_key ) (capabilities.php:475), and every key
+	 * either module registers is protected — Yoast's by its leading underscore,
+	 * Rank Math's by its own is_protected_meta filter — so on a real site
+	 * $allowed arrives FALSE for all of them. Deny-everything is the realistic
+	 * regression here; the allowed=true case above cannot catch it.
+	 */
+	public function test_can_edit_post_meta_grants_access_despite_allowed_being_false(): void {
+		WpStubs::$user_caps['7:edit_post:99'] = true;
+		$this->assertTrue( Rank_Math_Rest::can_edit_post_meta( false, 'rank_math_title', 99, 7 ) );
 	}
 
 	/**
@@ -420,6 +442,14 @@ final class RankMathRestTest extends TestCase {
 		WpStubs::$user_caps['5:edit_post:42'] = false;
 
 		$this->assertFalse( Rank_Math_Rest::can_edit_post_meta( true, 'rank_math_title', 42, 5 ) );
+
+		// ...and the converse, so this cannot pass merely by returning false:
+		// current user denied, the user core asked about allowed.
+		WpStubs::$current_user_id             = 5;
+		WpStubs::$user_caps['5:edit_post:77'] = false;
+		WpStubs::$user_caps['7:edit_post:77'] = true;
+
+		$this->assertTrue( Rank_Math_Rest::can_edit_post_meta( true, 'rank_math_title', 77, 7 ) );
 	}
 
 	/**

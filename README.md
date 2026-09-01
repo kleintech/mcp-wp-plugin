@@ -46,7 +46,7 @@ Exposed keys:
 Three notes worth knowing before you point a client at these:
 
 - **`rank_math_advanced_robots` is a map, not a list.** Registering it as an array of strings makes WordPress reindex it on every write — including Rank Math's own metabox saves — which silently wipes the directives. It is registered as an object schema for that reason.
-- **The `_image` keys hold URLs, and Rank Math keeps a paired `_image_id` attachment ID that this module does not expose.** Writing an image URL through REST leaves that pair inconsistent, so prefer setting social images in Rank Math's own UI.
+- **Writing the `_image` keys has no rendered effect.** They hold URLs, but Rank Math's frontend picks the social image from the paired `_image_id` attachment ID only (`includes/opengraph/class-image.php:409`) — it never reads the URL. That key is not exposed here, so social images have to be set in Rank Math's own UI.
 - **Writing `rank_math_twitter_*` does nothing on a post that has never had `rank_math_twitter_use_facebook` set to `'off'`.** See below.
 
 #### The Twitter fallback, and the warning a client should surface
@@ -60,6 +60,8 @@ Rank Math has a per-post "Use Facebook data for Twitter" switch. When it is on, 
 | *(no row — every untouched post)* | Facebook fields are rendered. Twitter fields ignored. |
 | `'on'` | Same. |
 | `'off'` | Twitter fields are rendered. |
+
+(`'true'` / `'false'` / `'1'` / `'0'` are also honoured by Rank Math's frontend; this plugin canonicalises them to `'on'` / `'off'` on write, which is the only spelling Rank Math's own editor agrees with.)
 
 The key is exposed read/write so a client can both detect this and fix it. But flipping it to `'off'` changes what the site renders on a page that was previously inheriting the Facebook text, so a client **should not flip it silently**. Recommended behaviour before writing any `rank_math_twitter_*` field:
 
