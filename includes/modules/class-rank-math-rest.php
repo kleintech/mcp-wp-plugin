@@ -217,8 +217,13 @@ final class Rank_Math_Rest implements Module {
 	 * Per-post capability check. register_post_meta passes
 	 * ( $allowed, $meta_key, $post_id, $user_id, $cap, $caps ) — gate on the
 	 * specific post so contributors can't edit SEO for posts they don't own.
+	 *
+	 * Answer about $user_id, not the current user: the same filter fires under
+	 * user_can()/author_can(), where core is asking about somebody else. Using
+	 * current_user_can() there returns the logged-in admin's answer to a
+	 * question about a contributor.
 	 */
-	public static function can_edit_post_meta( bool $allowed, string $meta_key, int $post_id ): bool {
-		return current_user_can( 'edit_post', $post_id );
+	public static function can_edit_post_meta( bool $allowed, string $meta_key, int $post_id, int $user_id ): bool {
+		return user_can( $user_id, 'edit_post', $post_id );
 	}
 }

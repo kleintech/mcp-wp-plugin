@@ -353,17 +353,29 @@ final class RankMathRestTest extends TestCase {
 	}
 
 	public function test_can_edit_post_meta_delegates_to_edit_post_capability(): void {
-		WpStubs::$caps['edit_post:42'] = true;
-		WpStubs::$caps['edit_post:43'] = false;
+		WpStubs::$user_caps['7:edit_post:42'] = true;
+		WpStubs::$user_caps['7:edit_post:43'] = false;
 
-		$this->assertTrue( Rank_Math_Rest::can_edit_post_meta( true, 'rank_math_title', 42 ) );
-		$this->assertFalse( Rank_Math_Rest::can_edit_post_meta( true, 'rank_math_title', 43 ) );
+		$this->assertTrue( Rank_Math_Rest::can_edit_post_meta( true, 'rank_math_title', 42, 7 ) );
+		$this->assertFalse( Rank_Math_Rest::can_edit_post_meta( true, 'rank_math_title', 43, 7 ) );
 	}
 
 	public function test_can_edit_post_meta_ignores_the_allowed_flag(): void {
 		// Even if WP defaults $allowed to true, we must still enforce the per-post check.
-		WpStubs::$caps['edit_post:99'] = false;
-		$this->assertFalse( Rank_Math_Rest::can_edit_post_meta( true, 'rank_math_title', 99 ) );
+		WpStubs::$user_caps['7:edit_post:99'] = false;
+		$this->assertFalse( Rank_Math_Rest::can_edit_post_meta( true, 'rank_math_title', 99, 7 ) );
+	}
+
+	/**
+	 * The bug this catches: answering with current_user_can() instead of
+	 * user_can( $user_id, ... ). See the twin test in YoastRestTest.
+	 */
+	public function test_can_edit_post_meta_answers_about_the_user_core_asked_about(): void {
+		WpStubs::$current_user_id             = 1;
+		WpStubs::$user_caps['1:edit_post:42'] = true;
+		WpStubs::$user_caps['5:edit_post:42'] = false;
+
+		$this->assertFalse( Rank_Math_Rest::can_edit_post_meta( true, 'rank_math_title', 42, 5 ) );
 	}
 
 	/**

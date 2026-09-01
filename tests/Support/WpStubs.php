@@ -18,8 +18,11 @@ final class WpStubs {
 	/** @var array<int, array{post_type: string, meta_key: string, args: array<string, mixed>}> */
 	public static array $registered_meta = [];
 
-	/** @var array<string, bool> Map of "edit_post:{id}" => allowed */
-	public static array $caps = [];
+	/** @var array<string, bool> Map of "{user_id}:{cap}:{object_id}" => allowed */
+	public static array $user_caps = [];
+
+	/** @var int User that current_user_can() answers for */
+	public static int $current_user_id = 0;
 
 	/** @var array<int, string> Post types returned by get_post_types stub */
 	public static array $post_types = [ 'post', 'page', 'attachment' ];
@@ -44,7 +47,8 @@ final class WpStubs {
 	public static function reset(): void {
 		self::$actions         = [];
 		self::$registered_meta = [];
-		self::$caps            = [];
+		self::$user_caps       = [];
+		self::$current_user_id = 0;
 		self::$post_types      = [ 'post', 'page', 'attachment' ];
 	}
 }
