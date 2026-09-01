@@ -25,3 +25,4 @@ McpWpHelper\Tests\Support\WpStubs::install();
 
 require_once dirname( __DIR__ ) . '/includes/class-module.php';
 require_once dirname( __DIR__ ) . '/includes/modules/class-yoast-rest.php';
+require_once dirname( __DIR__ ) . '/includes/modules/class-rank-math-rest.php';
