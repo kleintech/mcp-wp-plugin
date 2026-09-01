@@ -39,13 +39,33 @@ Exposed keys:
 - `rank_math_pillar_content` — `'on'` when set, empty otherwise
 - `rank_math_facebook_title` / `_description` / `_image`
 - `rank_math_twitter_title` / `_description` / `_image`
+- `rank_math_twitter_use_facebook` — `'on'` / `'off'` / empty; **defaults to ON**, see below
 - `rank_math_robots` — array of strings, e.g. `["index","follow"]`
 - `rank_math_advanced_robots` — **object**, keyed by directive: `{"max-snippet":"-1","max-image-preview":"large"}`
 
-Two notes worth knowing before you point a client at these:
+Three notes worth knowing before you point a client at these:
 
 - **`rank_math_advanced_robots` is a map, not a list.** Registering it as an array of strings makes WordPress reindex it on every write — including Rank Math's own metabox saves — which silently wipes the directives. It is registered as an object schema for that reason.
 - **The `_image` keys hold URLs, and Rank Math keeps a paired `_image_id` attachment ID that this module does not expose.** Writing an image URL through REST leaves that pair inconsistent, so prefer setting social images in Rank Math's own UI.
+- **Writing `rank_math_twitter_*` does nothing on a post that has never had `rank_math_twitter_use_facebook` set to `'off'`.** See below.
+
+#### The Twitter fallback, and the warning a client should surface
+
+Rank Math has a per-post "Use Facebook data for Twitter" switch. When it is on, `Twitter::use_facebook()` sets the tag prefix to `facebook` and the `rank_math_twitter_*` values are never rendered — they stay in the database, silently ignored.
+
+**Its default is on.** `Twitter::use_facebook()` reads the meta with a default of `true`, and `Options::normalize_data()` maps `'on' => true` and `'off' => false`. So the key has three states:
+
+| Stored value | Behaviour |
+| --- | --- |
+| *(no row — every untouched post)* | Facebook fields are rendered. Twitter fields ignored. |
+| `'on'` | Same. |
+| `'off'` | Twitter fields are rendered. |
+
+The key is exposed read/write so a client can both detect this and fix it. But flipping it to `'off'` changes what the site renders on a page that was previously inheriting the Facebook text, so a client **should not flip it silently**. Recommended behaviour before writing any `rank_math_twitter_*` field:
+
+> This post is set to use its Facebook social text for Twitter, which is Rank Math's default. Your Twitter title/description won't appear on the live page unless I also turn that off. Turn it off and use the Twitter values, or leave it and write the Facebook fields instead?
+
+Reading it back is unambiguous: an empty value means "not set", which behaves the same as `'on'`.
 
 ## Adding a module
 

@@ -20,6 +20,7 @@ final class RankMathRestTest extends TestCase {
 		'rank_math_facebook_title',
 		'rank_math_facebook_description',
 		'rank_math_facebook_image',
+		'rank_math_twitter_use_facebook',
 		'rank_math_twitter_title',
 		'rank_math_twitter_description',
 		'rank_math_twitter_image',
@@ -214,6 +215,49 @@ final class RankMathRestTest extends TestCase {
 			[ Rank_Math_Rest::class, 'sanitize_pillar_content' ],
 			$this->find_meta( 'post', 'rank_math_pillar_content' )['args']['sanitize_callback']
 		);
+	}
+
+	public function test_twitter_use_facebook_uses_the_on_off_sanitizer(): void {
+		WpStubs::$post_types = [ 'post' ];
+		Rank_Math_Rest::register_meta();
+
+		$this->assertSame(
+			[ Rank_Math_Rest::class, 'sanitize_on_off' ],
+			$this->find_meta( 'post', 'rank_math_twitter_use_facebook' )['args']['sanitize_callback']
+		);
+	}
+
+	/**
+	 * The bug this catches: treating twitter_use_facebook as a two-state
+	 * checkbox like pillar_content. It is tri-state and its default is ON —
+	 * Twitter::use_facebook() reads it with a default of true — so collapsing
+	 * 'off' to '' silently re-enables the Facebook fallback and makes every
+	 * rank_math_twitter_* write invisible on the rendered page.
+	 *
+	 * @dataProvider on_off_values
+	 */
+	public function test_sanitize_on_off_keeps_both_literals( $input, string $expected ): void {
+		$this->assertSame( $expected, Rank_Math_Rest::sanitize_on_off( $input ) );
+	}
+
+	/**
+	 * @return array<string, array{0: mixed, 1: string}>
+	 */
+	public static function on_off_values(): array {
+		return [
+			'on stays on'              => [ 'on', 'on' ],
+			'off stays off'            => [ 'off', 'off' ],
+			'empty means unset'        => [ '', '' ],
+			// Options::normalize_data() recognises only the two literals, so
+			// anything else must become '' rather than a value that looks set.
+			'uppercase OFF is not off' => [ 'OFF', '' ],
+			'string 1'                 => [ '1', '' ],
+			'string 0'                 => [ '0', '' ],
+			'bool true'                => [ true, '' ],
+			'bool false'               => [ false, '' ],
+			'null'                     => [ null, '' ],
+			'array'                    => [ [ 'off' ], '' ],
+		];
 	}
 
 	public function test_sanitize_pillar_content_keeps_on(): void {

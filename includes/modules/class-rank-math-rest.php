@@ -39,6 +39,15 @@ final class Rank_Math_Rest implements Module {
 	 * rank_math_{network}_image_id attachment ID that this module deliberately
 	 * does not expose — writing only the URL leaves the pair inconsistent, so
 	 * social images are better set through Rank Math's own UI.
+	 *
+	 * rank_math_twitter_use_facebook is a TRI-STATE and its default is ON:
+	 * Twitter::use_facebook() reads it with a default of true, and
+	 * Options::normalize_data() maps 'on' => true and 'off' => false. So an
+	 * ABSENT row means the Facebook fields are rendered in place of the Twitter
+	 * ones — which is the state every post starts in. Writing
+	 * rank_math_twitter_* has no visible effect until this key is set to 'off'.
+	 * Exposed read/write so a client can detect that and decide; see the README
+	 * for the warning a client should surface before flipping it.
 	 */
 	private const META_KEYS = [
 		'rank_math_title'                => 'sanitize_text_field',
@@ -49,6 +58,7 @@ final class Rank_Math_Rest implements Module {
 		'rank_math_facebook_title'       => 'sanitize_text_field',
 		'rank_math_facebook_description' => 'sanitize_textarea_field',
 		'rank_math_facebook_image'       => 'esc_url_raw',
+		'rank_math_twitter_use_facebook' => [ self::class, 'sanitize_on_off' ],
 		'rank_math_twitter_title'        => 'sanitize_text_field',
 		'rank_math_twitter_description'  => 'sanitize_textarea_field',
 		'rank_math_twitter_image'        => 'esc_url_raw',
@@ -187,6 +197,16 @@ final class Rank_Math_Rest implements Module {
 		}
 
 		return $properties;
+	}
+
+	/**
+	 * Rank Math's tri-state checkbox storage: 'on', 'off', or no row at all.
+	 * Options::normalize_data() only recognises those two literals, so anything
+	 * else is coerced to '' — which deletes the distinction and falls back to
+	 * the key's own default, the same as an untouched post.
+	 */
+	public static function sanitize_on_off( $value ): string {
+		return in_array( $value, [ 'on', 'off' ], true ) ? $value : '';
 	}
 
 	/**
