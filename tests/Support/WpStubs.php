@@ -27,6 +27,22 @@ final class WpStubs {
 	/** @var array<int, string> Post types returned by get_post_types stub */
 	public static array $post_types = [ 'post', 'page', 'attachment' ];
 
+	/** @var array<string, array<int, array<int, callable>>> Hook => priority => callbacks, in insertion order */
+	public static array $filters = [];
+
+	/**
+	 * Force a module's detection filter to a fixed answer.
+	 *
+	 * Detection reads real constants/classes, which cannot be undefined once
+	 * set — so tests drive it through the filter instead of defining
+	 * WPSEO_VERSION and poisoning every later test in the process.
+	 */
+	public static function set_seo_plugin_active( string $filter, bool $active ): void {
+		add_filter( $filter, static function () use ( $active ): bool {
+			return $active;
+		} );
+	}
+
 	/**
 	 * Snapshot of the hooks the real plugin file registered at load time.
 	 * Taken once by the bootstrap and deliberately NOT cleared by reset(),
@@ -50,5 +66,6 @@ final class WpStubs {
 		self::$user_caps       = [];
 		self::$current_user_id = 0;
 		self::$post_types      = [ 'post', 'page', 'attachment' ];
+		self::$filters         = [];
 	}
 }

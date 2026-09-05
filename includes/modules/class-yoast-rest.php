@@ -43,7 +43,33 @@ final class Yoast_Rest implements Module {
 		add_action( 'init', [ self::class, 'register_meta' ], 20 );
 	}
 
+	/**
+	 * Is Yoast SEO installed and loaded on this site?
+	 *
+	 * Registering these keys on a site without Yoast is not merely noise: the
+	 * REST API then accepts writes to _yoast_wpseo_* that return 200, land in
+	 * postmeta, and are never read by anything. A silent no-op write is
+	 * indistinguishable from a successful one.
+	 *
+	 * Checked at init:20 rather than at plugins_loaded so the answer accounts
+	 * for anything that loads Yoast late. The filter is an escape hatch for a
+	 * false negative (a fork, or a bundle that ships Yoast's meta without its
+	 * constants) — without it, a missed detection silently removes fields that
+	 * a working site depends on.
+	 */
+	public static function is_active(): bool {
+		$detected = defined( 'WPSEO_VERSION' )
+			|| defined( 'WPSEO_FILE' )
+			|| class_exists( 'WPSEO_Options' );
+
+		return (bool) apply_filters( 'mcp_wp_helper_yoast_active', $detected );
+	}
+
 	public static function register_meta(): void {
+		if ( ! self::is_active() ) {
+			return;
+		}
+
 		$post_types = array_diff(
 			get_post_types( [ 'public' => true ], 'names' ),
 			[ 'attachment' ]
