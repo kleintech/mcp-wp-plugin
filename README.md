@@ -40,6 +40,19 @@ Detection answers "installed and loaded", not "operating" — a plugin that defi
 its constants and then aborts on an unmet PHP or WordPress requirement still reads
 as present.
 
+**Gating removes reads, not just writes.** `register_post_meta` is what puts a key
+in the REST `meta` object at all, so on a site where the plugin is gone the keys
+disappear from the response rather than merely rejecting writes. That matters for
+leftovers: a site migrated from Yoast to Rank Math still has `_yoast_wpseo_*` rows
+in `postmeta`, and once the Yoast module gates off, those rows are invisible and
+un-clearable through the REST API. They are inert either way — nothing renders
+them — but if you want to read or delete them, force the module on for as long as
+the cleanup takes:
+
+```php
+add_filter( 'mcp_wp_helper_yoast_active', '__return_true' );
+```
+
 ### Yoast SEO REST exposure
 
 Yoast SEO stores its per-post fields (`_yoast_wpseo_title`, `_yoast_wpseo_metadesc`, etc.) as post meta but does not set `show_in_rest`, so the standard `/wp/v2/posts` endpoint cannot read or write them. This module registers the common Yoast meta keys across every public post type with a per-post `edit_post` auth callback, so mcp-wp can update meta titles and descriptions in bulk via the standard REST surface. Because the check is per-post rather than the blanket `edit_posts`, a contributor still can't edit SEO on a post they don't own.
