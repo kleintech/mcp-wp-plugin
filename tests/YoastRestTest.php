@@ -12,6 +12,11 @@ final class YoastRestTest extends TestCase {
 
 	protected function setUp(): void {
 		WpStubs::reset();
+
+		// Yoast is not loaded in the unit-test process, so detection is
+		// false by default. These tests are about what gets registered once the
+		// module is enabled; the gate itself is covered by its own tests below.
+		WpStubs::set_seo_plugin_active( 'mcp_wp_helper_yoast_active', true );
 	}
 
 	public function test_register_hooks_register_meta_on_init_with_late_priority(): void {

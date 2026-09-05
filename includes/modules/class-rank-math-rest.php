@@ -104,7 +104,36 @@ final class Rank_Math_Rest implements Module {
 		add_action( 'init', [ self::class, 'register_meta' ], 20 );
 	}
 
+	/**
+	 * Is Rank Math actually running on this site?
+	 *
+	 * Registering these keys on a site without Rank Math is not merely noise:
+	 * the REST API then accepts writes to rank_math_* that return 200, land in
+	 * postmeta, and are never read by anything. A silent no-op write is
+	 * indistinguishable from a successful one.
+	 *
+	 * Checked at init:20 rather than at plugins_loaded so the answer accounts
+	 * for anything that loads Rank Math late. The filter is an escape hatch for
+	 * a false negative (a fork, or a bundle that ships Rank Math's meta without
+	 * its constants) — without it, a missed detection silently removes fields
+	 * that a working site depends on.
+	 *
+	 * Detection is per-module and independent of Yoast: a site mid-migration
+	 * can legitimately run both, and both modules should register there.
+	 */
+	public static function is_active(): bool {
+		$detected = defined( 'RANK_MATH_VERSION' )
+			|| defined( 'RANK_MATH_FILE' )
+			|| class_exists( 'RankMath' );
+
+		return (bool) apply_filters( 'mcp_wp_helper_rank_math_active', $detected );
+	}
+
 	public static function register_meta(): void {
+		if ( ! self::is_active() ) {
+			return;
+		}
+
 		$post_types = array_diff(
 			get_post_types( [ 'public' => true ], 'names' ),
 			[ 'attachment' ]

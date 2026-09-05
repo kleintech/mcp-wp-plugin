@@ -11,6 +11,29 @@ That's it — there are no settings.
 
 ## Modules
 
+Each module only registers its meta keys when the plugin it supports is actually
+present. Detection runs at `init` priority 20 — late enough to see a plugin that
+loads on `plugins_loaded` — and is independent per module, so a site running both
+Yoast and Rank Math (a migration in progress, say) gets both sets of keys.
+
+This matters beyond tidiness. A key registered for an absent plugin still accepts
+writes: the REST API returns `200`, the value lands in `postmeta`, and nothing
+ever reads it. A write that reports success but has no effect is worse than one
+that fails.
+
+| Module | Detected by | Filter |
+| --- | --- | --- |
+| Yoast SEO | `WPSEO_VERSION`, `WPSEO_FILE`, or `WPSEO_Options` | `mcp_wp_helper_yoast_active` |
+| Rank Math | `RANK_MATH_VERSION`, `RANK_MATH_FILE`, or `RankMath` | `mcp_wp_helper_rank_math_active` |
+
+Each filter receives the detected boolean and can force it either way — to cover a
+fork or bundle that ships the meta without the constants, or to switch a module off
+on a site that manages those fields elsewhere:
+
+```php
+add_filter( 'mcp_wp_helper_yoast_active', '__return_false' );
+```
+
 ### Yoast SEO REST exposure
 
 Yoast SEO stores its per-post fields (`_yoast_wpseo_title`, `_yoast_wpseo_metadesc`, etc.) as post meta but does not set `show_in_rest`, so the standard `/wp/v2/posts` endpoint cannot read or write them. This module registers the common Yoast meta keys across every public post type with a per-post `edit_post` auth callback, so mcp-wp can update meta titles and descriptions in bulk via the standard REST surface. Because the check is per-post rather than the blanket `edit_posts`, a contributor still can't edit SEO on a post they don't own.
@@ -73,6 +96,10 @@ Reading it back is unambiguous: an empty value means "not set", which behaves th
 
 1. Create `includes/modules/class-{name}.php` implementing `McpWpHelper\Module`.
 2. `require_once` it from `mcp-wp-helper.php` and call its `register()` in the `plugins_loaded` callback.
+3. Gate it on detecting whatever it supports, the way the SEO modules do — hook
+   `init` unconditionally, then bail early from the registration callback when the
+   target plugin isn't there. Registering keys speculatively is how you end up with
+   writes that silently do nothing.
 
 `tests/bootstrap.php` loads `mcp-wp-helper.php` itself, so there's nothing to duplicate there — and `tests/PluginWiringTest.php` fails if a module is defined but never wired up.
 

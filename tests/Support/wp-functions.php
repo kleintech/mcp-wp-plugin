@@ -17,6 +17,32 @@ function add_action( string $hook, $callback, int $priority = 10, int $accepted_
 	return true;
 }
 
+function add_filter( string $hook, $callback, int $priority = 10, int $accepted_args = 1 ): bool {
+	WpStubs::$filters[ $hook ][] = [
+		'callback' => $callback,
+		'priority' => $priority,
+	];
+	return true;
+}
+
+/**
+ * @param mixed $value
+ * @return mixed
+ */
+function apply_filters( string $hook, $value, ...$args ) {
+	$callbacks = WpStubs::$filters[ $hook ] ?? [];
+
+	usort( $callbacks, static function ( array $a, array $b ): int {
+		return $a['priority'] <=> $b['priority'];
+	} );
+
+	foreach ( $callbacks as $filter ) {
+		$value = ( $filter['callback'] )( $value, ...$args );
+	}
+
+	return $value;
+}
+
 function plugin_dir_path( string $file ): string {
 	return rtrim( dirname( $file ), '/' ) . '/';
 }

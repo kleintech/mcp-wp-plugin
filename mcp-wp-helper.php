@@ -2,7 +2,7 @@
 /**
  * Plugin Name: MCP WP Helper
  * Description: Server-side companion for mcp-wp. Exposes fields and capabilities that the MCP connector needs but core WordPress and common plugins do not register for the REST API.
- * Version:     0.2.0
+ * Version:     0.2.1
  * Author:      Jon Klein
  * License:     MIT
  * Requires PHP: 7.4
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'MCP_WP_HELPER_VERSION', '0.2.0' );
+define( 'MCP_WP_HELPER_VERSION', '0.2.1' );
 define( 'MCP_WP_HELPER_DIR', plugin_dir_path( __FILE__ ) );
 
 require_once MCP_WP_HELPER_DIR . 'includes/class-module.php';
