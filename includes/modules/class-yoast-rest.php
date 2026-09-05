@@ -44,7 +44,7 @@ final class Yoast_Rest implements Module {
 	}
 
 	/**
-	 * Is Yoast SEO actually running on this site?
+	 * Is Yoast SEO installed and loaded on this site?
 	 *
 	 * Registering these keys on a site without Yoast is not merely noise: the
 	 * REST API then accepts writes to _yoast_wpseo_* that return 200, land in

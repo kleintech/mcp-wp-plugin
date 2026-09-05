@@ -17,11 +17,14 @@ function add_action( string $hook, $callback, int $priority = 10, int $accepted_
 	return true;
 }
 
+/**
+ * Buckets by priority and appends within a bucket, which is how real WordPress
+ * stores filters (a priority-keyed array it ksorts). Sorting a flat list with
+ * usort instead would scramble same-priority callbacks on PHP 7.4, where sort
+ * is not stable — and this plugin supports 7.4.
+ */
 function add_filter( string $hook, $callback, int $priority = 10, int $accepted_args = 1 ): bool {
-	WpStubs::$filters[ $hook ][] = [
-		'callback' => $callback,
-		'priority' => $priority,
-	];
+	WpStubs::$filters[ $hook ][ $priority ][] = $callback;
 	return true;
 }
 
@@ -30,14 +33,13 @@ function add_filter( string $hook, $callback, int $priority = 10, int $accepted_
  * @return mixed
  */
 function apply_filters( string $hook, $value, ...$args ) {
-	$callbacks = WpStubs::$filters[ $hook ] ?? [];
+	$buckets = WpStubs::$filters[ $hook ] ?? [];
+	ksort( $buckets );
 
-	usort( $callbacks, static function ( array $a, array $b ): int {
-		return $a['priority'] <=> $b['priority'];
-	} );
-
-	foreach ( $callbacks as $filter ) {
-		$value = ( $filter['callback'] )( $value, ...$args );
+	foreach ( $buckets as $callbacks ) {
+		foreach ( $callbacks as $callback ) {
+			$value = $callback( $value, ...$args );
+		}
 	}
 
 	return $value;

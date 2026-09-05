@@ -39,6 +39,38 @@ final class ModuleDetectionTest extends TestCase {
 		$this->assertFalse( Rank_Math_Rest::is_active() );
 	}
 
+	/**
+	 * The bug this catches: a typo in a detection identifier. Every other test
+	 * here drives detection through the filter, so corrupting all six real
+	 * constant/class names leaves the whole suite green while shipping a module
+	 * that registers nothing on a live Yoast or Rank Math site — silently
+	 * removing fields that worked in 0.2.0, which is this change's own worst
+	 * failure mode. These two exercise the real identifiers.
+	 *
+	 * Separate processes because a constant cannot be undefined once set, and
+	 * defining it here would leak into every later test in the run.
+	 *
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_yoast_detection_is_true_when_its_real_constant_is_defined(): void {
+		define( 'WPSEO_VERSION', '22.0' );
+
+		$this->assertTrue( Yoast_Rest::is_active() );
+		$this->assertFalse( Rank_Math_Rest::is_active() );
+	}
+
+	/**
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_rank_math_detection_is_true_when_its_real_constant_is_defined(): void {
+		define( 'RANK_MATH_VERSION', '1.0.277' );
+
+		$this->assertTrue( Rank_Math_Rest::is_active() );
+		$this->assertFalse( Yoast_Rest::is_active() );
+	}
+
 	public function test_yoast_registers_nothing_when_yoast_is_absent(): void {
 		Yoast_Rest::register_meta();
 
@@ -113,13 +145,24 @@ final class ModuleDetectionTest extends TestCase {
 	 * The escape hatch has to work in the disabling direction too — a site that
 	 * has Yoast installed but manages its SEO meta elsewhere needs a way to
 	 * turn the module off without deactivating this plugin.
+	 *
+	 * Established in two phases on purpose. Detection is already false in this
+	 * process, so asserting only that nothing registers would pass even if the
+	 * gate ignored the filter entirely. Phase one proves these exact conditions
+	 * DO register; phase two changes nothing but the filter's answer.
 	 */
 	public function test_filter_can_disable_a_module_that_would_otherwise_register(): void {
+		WpStubs::$post_types = [ 'post' ];
 		WpStubs::set_seo_plugin_active( self::YOAST_FILTER, true );
+
+		Yoast_Rest::register_meta();
+		$this->assertNotSame( [], WpStubs::$registered_meta );
+
+		WpStubs::reset();
+		WpStubs::$post_types = [ 'post' ];
 		WpStubs::set_seo_plugin_active( self::YOAST_FILTER, false );
 
 		Yoast_Rest::register_meta();
-
 		$this->assertSame( [], WpStubs::$registered_meta );
 	}
 }

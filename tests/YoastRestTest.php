@@ -64,6 +64,10 @@ final class YoastRestTest extends TestCase {
 
 		Yoast_Rest::register_meta();
 
+		// Every assertion below lives inside the loop, so an empty list would
+		// make this test vacuous rather than failing.
+		$this->assertNotEmpty( WpStubs::$registered_meta );
+
 		foreach ( WpStubs::$registered_meta as $entry ) {
 			$args = $entry['args'];
 			$this->assertSame( 'string', $args['type'], "type for {$entry['meta_key']}" );

@@ -28,11 +28,17 @@ that fails.
 
 Each filter receives the detected boolean and can force it either way — to cover a
 fork or bundle that ships the meta without the constants, or to switch a module off
-on a site that manages those fields elsewhere:
+on a site that manages those fields elsewhere. Add it before `init` priority 20 (a
+mu-plugin, a plugin body, or `functions.php` all qualify); added from a later hook
+it silently does nothing, because the gate has already been evaluated:
 
 ```php
 add_filter( 'mcp_wp_helper_yoast_active', '__return_false' );
 ```
+
+Detection answers "installed and loaded", not "operating" — a plugin that defines
+its constants and then aborts on an unmet PHP or WordPress requirement still reads
+as present.
 
 ### Yoast SEO REST exposure
 

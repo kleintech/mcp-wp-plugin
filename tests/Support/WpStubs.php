@@ -27,7 +27,7 @@ final class WpStubs {
 	/** @var array<int, string> Post types returned by get_post_types stub */
 	public static array $post_types = [ 'post', 'page', 'attachment' ];
 
-	/** @var array<string, array<int, array{callback: callable, priority: int}>> */
+	/** @var array<string, array<int, array<int, callable>>> Hook => priority => callbacks, in insertion order */
 	public static array $filters = [];
 
 	/**

@@ -105,7 +105,7 @@ final class Rank_Math_Rest implements Module {
 	}
 
 	/**
-	 * Is Rank Math actually running on this site?
+	 * Is Rank Math installed and loaded on this site?
 	 *
 	 * Registering these keys on a site without Rank Math is not merely noise:
 	 * the REST API then accepts writes to rank_math_* that return 200, land in
@@ -120,6 +120,10 @@ final class Rank_Math_Rest implements Module {
 	 *
 	 * Detection is per-module and independent of Yoast: a site mid-migration
 	 * can legitimately run both, and both modules should register there.
+	 *
+	 * Note this answers "loaded", not "operating": Rank Math defines its
+	 * constants before checking its own PHP/WP requirements, so a copy that
+	 * self-aborts on an unmet requirement still reads as present here.
 	 */
 	public static function is_active(): bool {
 		$detected = defined( 'RANK_MATH_VERSION' )
